@@ -1,0 +1,76 @@
+import streamlit as st
+import pandas as pd
+
+st.set_page_config(layout="wide")
+st.title("Simulasi Clinker Factor Konsolidasi - Input CF per Jenis Semen")
+
+# --- Data lengkap (22 jenis semen termasuk CIL PCC)
+data = {
+    "Cement Type": [
+        "NAR1 PCC (Transisi)", "NAR1 OPC", "NAR1 OPC - SG", "NAR1 RFP", "NAR1 OWC",
+        "NAR1 Type V", "NAR1 PwrPro", "NAR2 PCC Regular", "NAR2 RFP", "NAR2 PwrPro",
+        "CIL PCC",
+        "TQ1 PCC (Transisi)", "TQ1 OPC - SG", "TQ1 RFP", "TQ1 Type V",
+        "TQ2 PCC Regular", "TQ2 Type V", "TQ2 RFP", "TQ2 OPC", "TQ2 PCC (Transisi)",
+        "LHO PCC Regular", "LHO OPC"
+    ],
+    "Plant": [
+        "NAR1", "NAR1", "NAR1", "NAR1", "NAR1",
+        "NAR1", "NAR1", "NAR2", "NAR2", "NAR2",
+        "CIL",
+        "TQ1", "TQ1", "TQ1", "TQ1",
+        "TQ2", "TQ2", "TQ2", "TQ2", "TQ2",
+        "LHO", "LHO"
+    ],
+    "Cement Production (ton)": [
+        93568, 203975, 649126, 1203648, 50770,
+        21581, 178172, 2532986, 50428, 0,
+        2482850,
+        94029, 0, 260539, 380682,
+        777580, 0, 260539, 338676, 0,
+        1094242, 331684
+    ],
+    "Clinker Factor (%)": [
+        88.50, 94.60, 88.00, 87.30, 96.40,
+        93.00, 70.00, 58.00, 91.12, 0.0,
+        58.00,
+        84.78, 0.0, 86.96, 95.50,
+        62.71, 0.0, 86.96, 90.32, 0.0,
+        58.50, 85.50
+    ]
+}
+
+df = pd.DataFrame(data)
+
+# --- Edit Clinker Factor (jika ingin)
+st.markdown("### Ubah Clinker Factor (%) jika perlu:")
+df['Clinker Factor (%)'] = st.data_editor(
+    df[['Cement Type', 'Clinker Factor (%)']],
+    use_container_width=True
+)['Clinker Factor (%)']
+
+# --- Hitung Clinker Consumption otomatis
+df['Clinker Consumption (ton)'] = df['Cement Production (ton)'] * df['Clinker Factor (%)'] / 100
+
+# --- Hitung total dan CF konsolidasi
+total_semen = df['Cement Production (ton)'].sum()
+total_klinker = df['Clinker Consumption (ton)'].sum()
+cf_konsolidasi = total_klinker / total_semen if total_semen > 0 else 0
+
+# --- Tampilkan hasil simulasi
+st.markdown("### Hasil Simulasi per Jenis Semen")
+st.dataframe(df[['Cement Type', 'Plant', 'Cement Production (ton)', 'Clinker Factor (%)', 'Clinker Consumption (ton)']], use_container_width=True)
+
+st.markdown("### Ringkasan Total")
+st.write(f"**Total Produksi Semen:** {total_semen:,.0f} ton")
+st.write(f"**Total Konsumsi Klinker:** {total_klinker:,.0f} ton")
+st.write(f"**Clinker Factor Konsolidasi:** {cf_konsolidasi:.4f}")
+
+# --- Ringkasan per plant
+st.markdown("### Ringkasan per Plant")
+plant_summary = df.groupby("Plant").agg({
+    "Cement Production (ton)": "sum",
+    "Clinker Consumption (ton)": "sum"
+}).reset_index()
+plant_summary['Clinker Factor per Plant'] = plant_summary['Clinker Consumption (ton)'] / plant_summary['Cement Production (ton)']
+st.dataframe(plant_summary, use_container_width=True)
